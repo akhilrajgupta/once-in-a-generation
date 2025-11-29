@@ -1,14 +1,12 @@
 # About Me
 
-Hi! I’m Akhil, a developer who enjoys building practical solutions with clean, readable code.
+Hi! I’m Akhil, and this is my playground to build AI driven, practical solutions 
 
 ## What I Do
-- Explore new tools and frameworks to create user-friendly applications.
-- Focus on writing maintainable code with clear documentation.
+- Use AI agents to write incredible code 
+- Learn while doing 
 
 ## How to Reach Me
-- Email: akhil@example.com
-- GitHub: [github.com/akhil](https://github.com/akhil)
+- Email: akhilrajgupta@gmail.com
+- Org Github link - https://github.com/once-in-a-generation
 
-## Current Focus
-- Improving my skills in full-stack development and automation.
