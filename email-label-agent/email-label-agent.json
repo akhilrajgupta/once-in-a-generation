@@ -1,0 +1,420 @@
+{
+  "name": "travlo email parser",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 1. Ingestion\nTriggers on manual execute or schedule. Fetches unread emails with label 'travel' from Gmail, including attachments.",
+        "height": 100,
+        "width": 240,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        30,
+        -140
+      ],
+      "id": "sticky-note-1",
+      "name": "Sticky Note 1"
+    },
+    {
+      "parameters": {
+        "content": "## 2. Preprocessing\nCustom JS decodes base64url email bodies, strips HTML tags to produce clean text, and identifies/flags PDF attachments for the OCR branch.",
+        "height": 100,
+        "width": 240,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        260,
+        -140
+      ],
+      "id": "sticky-note-2",
+      "name": "Sticky Note 2"
+    },
+    {
+      "parameters": {
+        "content": "## 3. OCR Branch\nConditional logic routes PDFs here. The node extracts raw text content from each PDF attachment found.",
+        "height": 100,
+        "width": 240,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        -350
+      ],
+      "id": "sticky-note-3",
+      "name": "Sticky Note 3"
+    },
+    {
+      "parameters": {
+        "content": "## 4. Aggregation\nMerges the processed email body with the extracted text from its PDF attachments. Groups everything by Message ID to ensure a single context object per email.",
+        "height": 100,
+        "width": 240,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        -120
+      ],
+      "id": "sticky-note-4",
+      "name": "Sticky Note 4"
+    },
+    {
+      "parameters": {
+        "content": "## 5. AI Extraction\nSends the consolidated text (Email + PDF) to GPT-4.1. The model classifies the booking type and extracts structured data (dates, ref numbers) matching the schema.",
+        "height": 100,
+        "width": 240,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1650,
+        -120
+      ],
+      "id": "sticky-note-5",
+      "name": "Sticky Note 5"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        0
+      ],
+      "id": "2121ac6e-21bf-4ea9-a8ec-969d77e3279c",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": true,
+        "simple": false,
+        "filters": {
+          "labelIds": [
+            "Label_26"
+          ],
+          "readStatus": "unread"
+        },
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        32,
+        0
+      ],
+      "id": "d1ec94db-6f90-4ace-a09e-6e93a636528c",
+      "name": "Get many messages",
+      "webhookId": "d50e2464-4c2d-4977-bc70-1611e6764f00",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "XHIEQWe9NeOeFBJa",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Run Once for All Items\nconst items = $input.all();\nconst out = [];\n\nfunction b64urlDecode(s = \"\") {\n  s = s.replace(/-/g, \"+\").replace(/_/g, \"/\");\n  const pad = s.length % 4 ? \"=\".repeat(4 - (s.length % 4)) : \"\";\n  return Buffer.from(s + pad, \"base64\").toString(\"utf8\");\n}\n\nfunction stripHtml(html = \"\") {\n  return html\n    .replace(/<style[\\s\\S]*?<\\/style>/gi, \"\")\n    .replace(/<script[\\s\\S]*?<\\/script>/gi, \"\")\n    .replace(/<\\/p>/gi, \"\\n\")\n    .replace(/<br\\s*\\/?>/gi, \"\\n\")\n    .replace(/<[^>]+>/g, \"\")\n    .replace(/&nbsp;/g, \" \")\n    .replace(/&amp;/g, \"&\")\n    .replace(/&lt;/g, \"<\")\n    .replace(/&gt;/g, \">\");\n}\n\nfunction findPart(payload, mime) {\n  const stack = [payload].filter(Boolean);\n  while (stack.length) {\n    const p = stack.pop();\n    if (p?.mimeType === mime && p?.body?.data) return p;\n    if (p?.parts?.length) stack.push(...p.parts);\n  }\n  return null;\n}\n\nfor (let i = 0; i < items.length; i++) {\n  const emailJson = items[i].json ?? {};\n  const emailBin = items[i].binary ?? {};\n\n  const messageId =\n    emailJson.id ||\n    emailJson.messageId ||\n    emailJson.threadId ||\n    String(emailJson.internalDate || i);\n\n  const payload = emailJson.payload;\n\n  const plain = findPart(payload, \"text/plain\");\n  const html = findPart(payload, \"text/html\");\n\n  const emailText =\n    emailJson.textPlain ||\n    emailJson.text ||\n    (plain ? b64urlDecode(plain.body.data) : \"\") ||\n    (html ? stripHtml(b64urlDecode(html.body.data)) : \"\") ||\n    emailJson.snippet ||\n    \"\";\n\n  out.push({\n    json: {\n      type: \"email\",\n      messageId,\n      subject: emailJson.headers?.subject ?? \"\",\n      from: emailJson.headers?.from ?? \"\",\n      date: emailJson.date ?? emailJson.headers?.date ?? \"\",\n      emailText,\n      raw: emailJson,\n      hasPdfs: false,\n      pdfCount: 0,\n    },\n  });\n\n  const pdfEntries = Object.entries(emailBin).filter(([_, b]) => {\n    const mt = (b?.mimeType || \"\").toLowerCase();\n    const fn = (b?.fileName || \"\").toLowerCase();\n    return mt.includes(\"pdf\") || fn.endsWith(\".pdf\");\n  });\n\n  out[out.length - 1].json.hasPdfs = pdfEntries.length > 0;\n  out[out.length - 1].json.pdfCount = pdfEntries.length;\n\n  for (const [key, b] of pdfEntries) {\n    // IMPORTANT: keep customData so you can recover messageId/fileName later\n    b.customData = { ...(b.customData || {}), messageId, fileName: b.fileName || key };\n\n    out.push({\n      json: { type: \"pdf\", messageId, attachmentKey: key, fileName: b.fileName || key, mimeType: b.mimeType || \"application/pdf\" },\n      binary: { attachment: b },\n    });\n  }\n}\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        0
+      ],
+      "id": "e1232d8a-2a06-48b2-b459-4bb35e5cc462",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "attachment",
+        "options": {
+          "keepSource": "json"
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        -224
+      ],
+      "id": "611d3f2e-51c7-4b81-963e-378b541f89fc",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "347b4335-de9c-4073-8314-d0709303038d",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "pdf",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        0
+      ],
+      "id": "bb39fe29-2300-4b88-a93f-e78344d5d48b",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1104,
+        48
+      ],
+      "id": "edda7ead-e6fd-4b56-85b0-0f3e75cae4db",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => ({\n  json: {\n    type: \"pdfText\",\n    messageId: item.json.messageId,\n    fileName: item.json.fileName,\n    text: item.json.text || \"\",\n  },\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        -224
+      ],
+      "id": "47e0b419-e219-4a3a-a2c7-76d1a4cd060b",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst byId = new Map();\n\nfor (const item of items) {\n  const j = item.json || {};\n  const messageId = j.messageId;\n  if (!messageId) continue;\n\n  if (!byId.has(messageId)) {\n    byId.set(messageId, {\n      json: { messageId, subject: null, from: null, date: null, emailText: null, pdfs: [] },\n    });\n  }\n\n  const agg = byId.get(messageId);\n\n  // email rows\n  if (j.type === \"email\") {\n    agg.json.subject = j.subject;\n    agg.json.from = j.from;\n    agg.json.date = j.date;\n    agg.json.emailText = j.emailText;\n    continue;\n  }\n\n  // pdf rows AFTER Extract From File (they have j.text + numpages etc)\n  if (typeof j.text === \"string\" && j.text.trim()) {\n    agg.json.pdfs.push({\n      fileName: j.fileName || j.attachmentKey || \"attachment.pdf\",\n      text: j.text,\n    });\n  }\n}\n\nreturn Array.from(byId.values());\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        48
+      ],
+      "id": "2f037b93-2ffa-4d41-97b5-069375c6eb7b",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a travel-itinerary extraction assistant.\n\nYou will receive:\n\n* `subject`, `from`, `date`\n* `emailText` (plain text or HTML-derived text)\n* optional `pdfs` array where each item has `fileName` and `text` (OCR/extracted PDF text)\n\nYour task:\n\n1. Determine what this message represents (flight / hotel / car / cruise / receipt / other).\n2. Extract the booking details into the required structured output fields.\n3. Prefer authoritative sources:\n\n   * If a field appears in both emailText and PDF text, trust the PDF text.\n   * If multiple PDFs exist, use the PDF that contains the most complete itinerary (often “Itinerary.pdf”).\n4. Be strict about dates/times:\n\n   * Convert times to ISO-8601 where possible.\n   * If timezone isn’t explicit, keep the original local time text and leave timezone null/empty.\n5. Normalize names, airports, airlines, hotels, cities, and confirmation numbers.\n6. If a field is unknown, return null (do not guess).\n7. Do not include marketing/footer text in any “notes” field.\n\nInput data:\n\n* subject: {{$json.subject}}\n* from: {{$json.from}}\n* date: {{$json.date}}\n* emailText: {{$json.emailText}}\n* pdfs: {{$json.pdfs}}\n",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1648,
+        48
+      ],
+      "id": "3af4e618-b2a1-4050-b2ff-05f382db6788",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1536,
+        304
+      ],
+      "id": "c5581649-3e64-469f-8ec6-c49be84eb81d",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "CyKDkert9ADZDYpk",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"category\": { \"type\": \"string\", \"enum\": [\"flight\", \"hotel\", \"car\", \"cruise\", \"receipt\", \"other\"] },\n    \"provider\": { \"type\": [\"string\", \"null\"] },\n    \"confirmationNumber\": { \"type\": [\"string\", \"null\"] },\n\n    \"travelerNames\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },\n\n    \"totalAmount\": { \"type\": [\"number\", \"null\"] },\n    \"currency\": { \"type\": [\"string\", \"null\"] },\n\n    \"flightSegments\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"airline\": { \"type\": [\"string\", \"null\"] },\n          \"flightNumber\": { \"type\": [\"string\", \"null\"] },\n          \"recordLocator\": { \"type\": [\"string\", \"null\"] },\n          \"departureAirport\": { \"type\": [\"string\", \"null\"] },\n          \"arrivalAirport\": { \"type\": [\"string\", \"null\"] },\n          \"departureDateTimeLocal\": { \"type\": [\"string\", \"null\"] },\n          \"arrivalDateTimeLocal\": { \"type\": [\"string\", \"null\"] },\n          \"cabin\": { \"type\": [\"string\", \"null\"] },\n          \"seat\": { \"type\": [\"string\", \"null\"] }\n        },\n        \"required\": [\"airline\",\"flightNumber\",\"recordLocator\",\"departureAirport\",\"arrivalAirport\",\"departureDateTimeLocal\",\"arrivalDateTimeLocal\",\"cabin\",\"seat\"]\n      }\n    },\n\n    \"hotelStay\": {\n      \"type\": [\"object\", \"null\"],\n      \"properties\": {\n        \"hotelName\": { \"type\": [\"string\", \"null\"] },\n        \"address\": { \"type\": [\"string\", \"null\"] },\n        \"checkInDate\": { \"type\": [\"string\", \"null\"] },\n        \"checkOutDate\": { \"type\": [\"string\", \"null\"] },\n        \"roomType\": { \"type\": [\"string\", \"null\"] },\n        \"rateTotal\": { \"type\": [\"number\", \"null\"] },\n        \"currency\": { \"type\": [\"string\", \"null\"] }\n      },\n      \"required\": [\"hotelName\",\"address\",\"checkInDate\",\"checkOutDate\",\"roomType\",\"rateTotal\",\"currency\"]\n    },\n\n    \"source\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"usedPdf\": { \"type\": \"boolean\" },\n        \"pdfFileNames\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }\n      },\n      \"required\": [\"usedPdf\",\"pdfFileNames\"]\n    }\n  },\n  \"required\": [\"category\",\"provider\",\"confirmationNumber\",\"travelerNames\",\"totalAmount\",\"currency\",\"flightSegments\",\"hotelStay\",\"source\"]\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1824,
+        320
+      ],
+      "id": "e0c50a8c-cff0-4b96-8580-5250f4d85b43",
+      "name": "Structured Output Parser"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "677e9ee6-7e05-4379-afbf-747077c5b5f2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a71cfbb3ccdb0e0c0c84d34a89648624f244dbe986f5a61b9b53c6b06fe494bb"
+  },
+  "id": "rj5fscdnxnnnuMCE",
+  "tags": []
+}
