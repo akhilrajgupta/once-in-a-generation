@@ -1,0 +1,893 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5c28393f-6e8b-425b-babb-22eac9ad7238",
+              "name": "API_KEY",
+              "value": "your-ares-api-key",
+              "type": "string"
+            },
+            {
+              "id": "a848bf0c-0a5f-4acc-9412-aebd93c84380",
+              "name": "top_results",
+              "value": "={{ $json.top_results ?? 3 }}",
+              "type": "number"
+            },
+            {
+              "id": "c52bbef3-c0a6-4017-a403-abaaee216895",
+              "name": "context",
+              "value": "={{ $json.context }}",
+              "type": "string"
+            },
+            {
+              "id": "ae883a9e-7207-48ef-ad1f-9c86076e0308",
+              "name": "num_search_terms",
+              "value": "={{ $json.num_search_terms ?? 2 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1568,
+        -256
+      ],
+      "id": "09c2b361-df1a-4b47-8e63-c12c1ebc39b6",
+      "name": "configuration"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n    \"type\": \"object\",\n    \"properties\": {\n        \"search_terms\": {\n            \"type\": \"array\",\n            \"description\": \"the google search terms\",\n            \"items\": {\n                \"type\": \"string\"\n            }\n        }\n    },\n    \"required\": [\n        \"search_terms\"\n    ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -1008,
+        80
+      ],
+      "id": "1130d18a-75ab-49a1-8105-5e63ffa5c72d",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        496,
+        272
+      ],
+      "id": "efa28fab-dd49-4011-a862-20a036d18ea7",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "bEv5BFbvv9wAxSoe",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output.search_terms",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        -256
+      ],
+      "id": "e6cacbc1-9414-4ba5-9b56-6a1c7cd745e6",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "=data.web_url",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        -256
+      ],
+      "id": "d81c080b-5ebb-44f2-abf7-594f3defd170",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "data",
+              "cssSelector": "body",
+              "returnValue": "html"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        656,
+        -256
+      ],
+      "id": "1e455365-6490-4474-83bc-4e01d25dfde8",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "html": "={{ $json.data }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        896,
+        -256
+      ],
+      "id": "c438ed8c-4e2c-4a39-9264-917080dd9ef3",
+      "name": "Markdown"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n    \"type\": \"object\",\n    \"properties\": {\n        \"summary\": {\n            \"type\": \"string\",\n            \"description\": \"the summary of the content\"\n        }\n    },\n    \"required\": [\n        \"summary\"\n    ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        1616,
+        144
+      ],
+      "id": "11660238-cd4d-4db9-8d4b-ef48639d0396",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n    \"type\": \"object\",\n    \"properties\": {\n        \"relevant_to_context\": {\n            \"type\": \"boolean\",\n            \"description\": \"whether the researched content is relevant to the context\"\n        }\n    },\n    \"required\": [\n        \"relevant_to_article\"\n    ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        2016,
+        112
+      ],
+      "id": "e5639ca1-8abd-4180-9f2e-92822b11840f",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "research_results",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2720,
+        -256
+      ],
+      "id": "b28edf02-59d7-4d77-944b-1441ebf08cab",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "top_results",
+              "type": "number"
+            },
+            {
+              "name": "context"
+            },
+            {
+              "name": "num_search_terms",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1888,
+        -256
+      ],
+      "id": "8173ebc4-915b-44cc-be8d-5d352146d377",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "content": "# Configure\n\n- Custom API key",
+        "height": 400,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1616,
+        -432
+      ],
+      "id": "15212f41-65f1-4ce4-bb66-fb6690985ead",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "# Custom Search API documentation\n\n## Signup on https://api.traversaal.ai/ to access api",
+        "height": 320,
+        "width": 1620
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        -992
+      ],
+      "id": "db9f5172-963f-4ad6-bd34-50f757b58a31",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=<Context>\n{{ $json.context }}\n</Context>\n\n<Instructions>\nI want to run a research on Google on the context above. \nHelp me to come up with search terms I can use.\nI need exactly {{ $json.num_search_terms }} search term(s) - no more no less. \nMake sure to be creative, and give me different ones so I can get diverse search results.\n</Instructions>",
+        "hasOutputParser": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        -1248,
+        -256
+      ],
+      "id": "1c404443-9387-4c9a-9452-878332190a4f",
+      "name": "create search terms"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-ares.traversaal.ai/live/predict",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-api-key",
+              "value": "={{ $('configuration').item.json.API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json['output.search_terms'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -672,
+        -256
+      ],
+      "id": "136edc3c-6cf0-4c4c-9480-e982fbfef373",
+      "name": "search on Custom API",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $json['data.web_url'] }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "user-agent",
+              "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        80,
+        -256
+      ],
+      "id": "091b6c1f-73b7-4085-b603-8b34938b9d02",
+      "name": "get the content of the link",
+      "retryOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "99cf6ac1-d77b-491c-86dc-44555032f5b0",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "e6dd1301-acb8-4dc4-83d0-4d5b1a7f2036",
+              "leftValue": "={{ $json.data }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        432,
+        -256
+      ],
+      "id": "bcc31668-c70e-4450-89d9-e5dd06f35a72",
+      "name": "filter out the errors"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e70a34f7-b723-47fe-a62f-1a318c483959",
+              "leftValue": "={{ $json.data }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        -256
+      ],
+      "id": "f7a100d5-c52a-4499-822c-926f523549c4",
+      "name": "filter empty results"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  item.json.data = item.json.data.replace(/!\\[[^\\]]+\\]\\([^\\)]+\\)/g, \"\") // remove images\n  item.json.data = item.json.data.replace(/\\[.*?\\]\\(.*?\\)/g, \"\") // remove links\n  item.json.data = item.json.data.replace(/\\n{2,}/g, \"\") // remove extra new line characters\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        -256
+      ],
+      "id": "15cb296f-c1a6-4e70-94db-52f62f538006",
+      "name": "cleanup the markdown"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=I've collected research content using Google search.\n\nRead the research content, and analyze whether it is relevant to the context below.\nMake sure it's also useful, and contains relevant information for my context.\n\n<Context>\n{{ $('configuration').item.json.context }}\n</Context>\n\n<ResearchContentSummary>\n{{ $json.output.summary }}\n</ResearchContentSummary>",
+        "hasOutputParser": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1920,
+        -256
+      ],
+      "id": "85f7414e-9d53-46d5-91a4-f0b1a057b243",
+      "name": "is it relevant?",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Please summarize the following content for me. Make sure to capture all the information in a concise format. Don't miss anything important.\nIgnore generic website elements like cookie policies, etc.\n\n<Content>\n{{ $json.data }}\n</Content>",
+        "hasOutputParser": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1536,
+        -256
+      ],
+      "id": "2871ef36-2ba3-41db-92bf-b7a70c3d115d",
+      "name": "summarize",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a72e5161-9b19-45fb-bb4f-5ae28d3da266",
+              "leftValue": "={{ $json.output.relevant_to_context }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        2256,
+        -256
+      ],
+      "id": "b318b495-a4c5-4af0-9911-caa8b3ea56e7",
+      "name": "filter irrelevant"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "53e16d12-8a90-4cf8-85e2-6aa2ef2ae3af",
+              "name": "summary",
+              "value": "={{ $('summarize').item.json.output.summary }}",
+              "type": "string"
+            },
+            {
+              "id": "1ca9f5a5-0e9a-47e6-9fef-079367dc4769",
+              "name": "title",
+              "value": "Search Result",
+              "type": "string"
+            },
+            {
+              "id": "11c33d6b-d23c-4bc6-9003-b8ca022b3ada",
+              "name": "link",
+              "value": "={{ $('Split Out1').item.json['data.web_url'] }}",
+              "type": "string"
+            },
+            {
+              "id": "eea8547b-2e21-4b71-a9dc-74639d658485",
+              "name": "snippet",
+              "value": "Custom API search result",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2496,
+        -256
+      ],
+      "id": "a3c1cd5c-5529-4300-afbf-66b07d867c05",
+      "name": "set fields to return"
+    },
+    {
+      "parameters": {
+        "content": "# You can replace OpenAI with Ollama!",
+        "height": 320,
+        "width": 420
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        144,
+        112
+      ],
+      "id": "ab1dcf90-b168-470e-acdb-0629454873a3",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "maxItems": 10
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        -256
+      ],
+      "id": "edd206e1-93b6-4b3a-8518-8828dfd52c9d",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "content": "# Search Term Generation\n\nThis section uses AI to generate diverse search terms based on the provided context. The AI analyzes the context and creates optimized search queries for better research coverage.",
+        "width": 380,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1264,
+        -464
+      ],
+      "id": "5a29ce9f-e646-4ffb-ae5f-856ef22e4f2d",
+      "name": "Search Terms Note"
+    },
+    {
+      "parameters": {
+        "content": "# Web Search & Data Collection\n\nThis pipeline executes searches using the custom API, extracts URLs from results, and fetches the actual web content. It includes error handling and rate limiting.",
+        "width": 600,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        -528
+      ],
+      "id": "f68e684b-6a46-44f6-a065-3d02def2b0b1",
+      "name": "Web Search Note"
+    },
+    {
+      "parameters": {
+        "content": "# Content Processing Pipeline\n\nHTML → Markdown → Cleanup → Summarization\n\nThis section converts web content to markdown, removes unnecessary elements (images, links, extra whitespace), and creates AI-powered summaries.",
+        "height": 180,
+        "width": 500,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        624,
+        -528
+      ],
+      "id": "536eb54c-65d5-43a4-a097-de88e02290fe",
+      "name": "Content Processing Note"
+    },
+    {
+      "parameters": {
+        "content": "# AI Quality Control\n\nThis section uses AI to:\n1. Evaluate content relevance to the original context\n2. Filter out irrelevant results\n3. Ensure only high-quality, contextually appropriate content passes through",
+        "height": 200,
+        "width": 400,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1776,
+        -528
+      ],
+      "id": "57e67dea-af0c-4b0d-a087-53e36d158082",
+      "name": "Quality Control Note"
+    },
+    {
+      "parameters": {
+        "content": "# Final Output Assembly\n\nStructures the final research results with:\n- Summary of each source\n- Original link\n- Title and snippet\n- All results aggregated into a single response",
+        "height": 300,
+        "width": 320,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2416,
+        -608
+      ],
+      "id": "5aa72546-77f5-41ee-a6cc-0e59ca491025",
+      "name": "Output Assembly Note"
+    },
+    {
+      "parameters": {
+        "content": "# Workflow Input Parameters\n\n- **context**: The research topic/question\n- **num_search_terms**: Number of search queries to generate\n- **top_results**: Maximum results to process per search\n\nThis workflow can be called from other workflows or triggered manually.",
+        "height": 300,
+        "width": 440
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2144,
+        -592
+      ],
+      "id": "a28404a2-24b6-4a26-949c-21406fdcd372",
+      "name": "Workflow Input Note"
+    }
+  ],
+  "connections": {
+    "configuration": {
+      "main": [
+        [
+          {
+            "node": "create search terms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "create search terms",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "create search terms",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "summarize",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "is it relevant?",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "search on Custom API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown": {
+      "main": [
+        [
+          {
+            "node": "filter empty results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "summarize",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "is it relevant?",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create search terms": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search on Custom API": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get the content of the link": {
+      "main": [
+        [
+          {
+            "node": "filter out the errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filter out the errors": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filter empty results": {
+      "main": [
+        [
+          {
+            "node": "cleanup the markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cleanup the markdown": {
+      "main": [
+        [
+          {
+            "node": "summarize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "is it relevant?": {
+      "main": [
+        [
+          {
+            "node": "filter irrelevant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "summarize": {
+      "main": [
+        [
+          {
+            "node": "is it relevant?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filter irrelevant": {
+      "main": [
+        [
+          {
+            "node": "set fields to return",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set fields to return": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "get the content of the link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a4ecec9555f5b06310e132d91f5a9064adeb061b91678daae338206fdb263b04"
+  }
+}

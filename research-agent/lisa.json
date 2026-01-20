@@ -1,0 +1,328 @@
+{
+  "name": "to-be-downloaded-version",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📝 WORKFLOW OVERVIEW\n\nThis n8n workflow provides AI-powered research assistance:\n\n🌐 **Internet Search** (SerpAPI)\n- Real-time web search capabilities via Google\n\n📚 **Document Search** (Supabase RAG)\n- Search through your private documents\n- Requires Supabase project setup",
+        "height": 464,
+        "width": 569,
+        "color": 5
+      },
+      "id": "cd7cdd6a-db4f-4bc8-ad32-fb7cb2d17651",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 🌐 INTERNET SEARCH\n\n**API:** SerpAPI (Google)\n**Purpose:** Real-time internet search\n\n**Setup Required:**\n1. Configure SerpAPI credentials in n8n\n\n**What it does:**\n- Searches Google for live content\n- Returns current information\n- Perfect for news, trends, product info",
+        "height": 419,
+        "width": 310
+      },
+      "id": "c454c4fe-1254-48f2-9616-d66e301a7962",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 📚 RAG SETUP (Optional)\n\nThis workflow is ready for RAG! \n\n**To enable:**\n1. Create a Supabase project\n2. Add your Supabase credentials to the 'Supabase Vector Store Node' below\n3. Run the ingestion script (from `supabase-rag` folder) to upload docs\n\nNow your agent can search your private data!",
+        "height": 639,
+        "width": 318
+      },
+      "id": "3c69bddb-c4e4-4f95-b66b-c2909cab9a2e",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1904,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ⚡ CHAT TRIGGER\n\nStarts the workflow when a user sends a message. The message becomes available as `chatInput` for the AI agent and tools to use.",
+        "height": 178,
+        "width": 242
+      },
+      "id": "23a896b8-c7c8-46f0-a7a5-d34c13005549",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        608,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 🤖 AI CONFIGURATION\n\n**Model:** GPT-4o-mini\n**Memory:** Buffer window for conversation context\n**Tools:** Connected to both search APIs\n\nThe agent decides which tool to use based on the user's query:\n- Internet search for current/general info\n- RAG search for document-specific queries",
+        "height": 199,
+        "width": 279
+      },
+      "id": "86c1e7d2-af8a-4785-b360-8ef7f6e7b06f",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        832,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        224
+      ],
+      "id": "c7f64958-379a-4d20-a9ba-3a00b4404dea",
+      "name": "When chat message received",
+      "webhookId": "da993f35-788d-4f94-bfe8-d63cc305c491"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "=You are a helpful assistant"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        928,
+        160
+      ],
+      "id": "2a9e4c28-1256-42d7-b0a0-09b102572963",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        448
+      ],
+      "id": "b8a9b360-03f0-4c0f-8eaf-9568aa8c9430",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "1NYcjHdurohDfhOk",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1072,
+        480
+      ],
+      "id": "7658dd86-07a1-4b02-9f4e-e920d38f8bba",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search the internet for information",
+        "url": "https://serpapi.com/search",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "serpApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google"
+            },
+            {
+              "name": "q",
+              "value": "={{ $fromAI('query', `Search query`, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1392,
+        480
+      ],
+      "id": "9e8b36c3-b1ed-4a80-8aac-8de6493620ab",
+      "name": "Internet Search",
+      "credentials": {
+        "serpApi": {
+          "id": "DtPeBZype4WpqlVv",
+          "name": "SerpAPI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "custom_rag",
+        "toolDescription": "Search internal documents using RAG",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreTool",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        700
+      ],
+      "id": "supabase-vector-store-id",
+      "name": "Supabase Vector Store"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        900
+      ],
+      "id": "openai-embeddings-id",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "1NYcjHdurohDfhOk",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "tableName": "documents"
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "position": [
+        1550,
+        900
+      ],
+      "id": "supabase-vector-node-id",
+      "name": "Supabase Vector Store Node",
+      "credentials": {
+        "supabaseApi": {
+          "id": "replace-with-your-supabase-cred-id",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Internet Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store Node",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store Node": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f39c45f5-bfa4-40fc-8a90-be590022c8fb",
+  "meta": {
+    "instanceId": "1725aaf255f271a2cb370b9051de0a61864aaf0b262c35ad3f624929f92bfcff"
+  },
+  "id": "WHYmVEhVEVlowyxL",
+  "tags": []
+}

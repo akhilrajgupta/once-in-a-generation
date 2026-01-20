@@ -1,0 +1,643 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -800,
+        64
+      ],
+      "id": "4bd65fdd-1cee-4807-b940-dfb2d0164d46",
+      "name": "When chat message received",
+      "webhookId": "dec4c317-7da0-408a-aff9-12ea97acd256"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -464,
+        416
+      ],
+      "id": "2baec785-713a-4fa4-8b64-6aff415af658",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "bEv5BFbvv9wAxSoe",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -144,
+        416
+      ],
+      "id": "5f30c742-43fe-4668-88a3-0ff8c5ee885c",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "=You are a helpful and detail-oriented AI travel assistant.\n\nYou help users plan trips by searching for flights, hotels, and activities, and then sending them a beautifully formatted HTML email summary and adding the trip to their calendar.\n\nYour job is to:\n1. Collect all required trip details from the user.\n2. Use the appropriate tools to search for flights, hotels, or activities.\n3. Once the full itinerary is ready, generate an HTML email + calendar events.\n\nOne important thing for most users when planning a trip is that they want to keep within a budget and also have some dates in mind. ENsure the trip takes that into account. If the user does not provide a budget, nudge them to confirm if they want to keep within a budget\n\n---\n\nTime now is: {{ $now.toString() }}\n\n---\n\n🔧 TOOL USAGE INSTRUCTIONS\n\nOnly invoke tools when you have all necessary information.\n\n### Flight Search Tool\nUse when user wants to find flights. Required fields:\n- Departure city (must be mapped to airport ID)\n- Destination city (must be mapped to airport ID)\n- Travel dates (departure + return)\n- Travel class (use this mapping):\n  - 1 = Economy (default)\n  - 2 = Premium economy\n  - 3 = Business\n  - 4 = First\n\nIf the user has a budget, try to stay within it by estimating how much lodging, activities and food will cost them. \n\nIf city has multiple airports, ask the user to confirm the correct one.\nOnly send **airport codes**, not city names to the search tool.\n\n---\n\n### Hotel Search Tool\nUse when user wants to book or explore accommodations. Required:\n- Destination city\n- Check-in and check-out dates\n\nSorting:\n- If a **budget** is given → sort by price (3)\n- If **no budget** → sort by rating (8)\n\nRating filters (if specified):\n- 7 = 3.5+\n- 8 = 4.0+\n- 9 = 4.5+\n\nIf the user has a budget, try to stay within it by estimating how much flights, activities and food will cost them. \n\nReturn only the **top 5** hotel options.\n\n---\n\n### Activity Search Tool\nUse when user requests things to do at the destination.\n- Tailor suggestions based on user preferences (e.g., food, history, adventure)\n- Ask for or consider any **budget**\n- Include price (if available), time, and location\n- Consider dates if needed\n\nIf the user has a budget, try to stay within it by estimating how much flights, lodging and food will cost them.\n\nReturn top 10 activities which is a balanced set from user's preferences, add more only if requested.\n\n---\n\n📨 EMAIL GENERATION INSTRUCTIONS\n\nOnce full itinerary is ready, generate an HTML email for the user.\n\n\nOnce all trip details are available, generate an **HTML travel summary email** that includes:\n- A **fun and engaging subject line** (with emojis, destination, and travel dates)\n- An **introduction paragraph** that excites the user about their upcoming trip\n- A structured itinerary in 3 sections: **Flights**, **Resorts**, and **Activities**\n- A friendly closing or sign-off message\n\nReturn:\n- `subject`: a one-line email subject\n- `emailBody`: an HTML-formatted string with the full email content\n\n---\n\n### FLIGHT SECTION RULES:\n- List 2–3 best flights (include airline name, departure time, duration, price, and class type)\n- Mention travel origin, destination, and travel dates\n- Use this mapping for booking class:\n  - 1 = Economy\n  - 2 = Premium economy\n  - 3 = Business\n  - 4 = First\n\n### RESORT SECTION RULES:\n- Include 3 resorts\n- For each:\n  - Name (must be a clickable link)\n  - Overall rating\n  - Image:\n    ```html\n    <img src=\"{image_url}\" style=\"max-width:20%; height:auto;\">\n    ```\n  - Check-in and check-out times\n  - Top 2 nearby places with travel time/type\n  - List key amenities\n\n### ACTIVITY SECTION RULES:\n- Include 2–5 activities\n- For each:\n  - Title (must be a clickable link)\n  - Description\n  - Timing and location (if available)\n  - Price (if mentioned)\n\n---\n\n### EMAIL STRUCTURE FORMAT:\n\nUse only HTML tags like:\n- `<h2>` for section headers\n- `<p>` for paragraphs\n- `<ul>` and `<li>` for lists\n- `<hr>` between sections\n\nResort and activity names must be hyperlinks. Use `<img>` tags for images. Add whitespace between content blocks.\n\n---\n\n### SUBJECT FORMAT:\n- Should include destination and travel dates\n- Should express excitement and include emojis\n- Example: `✈️ Istanbul Awaits! Your Adventure from June 10–15 Is Ready 🌟`\n\n---\n\n### OTHER EMAIL NOTES:\n- Keep content under 1000 words\n- Be warm, concise, and friendly\n- Skip sections if data is missing, but gracefully mention it\n\nReturn two keys: `subject`, `emailBody`\n\n---\n\n📅 CALENDAR INSTRUCTIONS\n\nWhen the itinerary is finalized:\n- Retrieve existing events from the user's Google Calendar that fall between the trip’s **departure and return dates**\n- If overlapping events are found:\n  - Notify the user with a list of conflicting events\n  - Ask whether they’d like to reschedule or skip creating conflicting events\n- Once cleared, proceed to:\n  - Create new calendar events for:\n    - Flight departures/returns\n    - Hotel check-in/check-out\n    - Activities and reservations\n- If the user updates their itinerary later:\n  - Delete old calendar events\n  - Recreate the updated ones\n\nUse user's timezone or assume destination local time if unspecified.\n\n---\n\n✅ Summary of Output Types:\n- If user is still sharing input → Ask follow-up questions\n- If enough info is collected → Use tools to search\n- If results are ready → Generate subject and emailBody\n- Create Google Calendar events for all itinerary items\n- If user modifies the itinerary after calendar events are created → Delete outdated events\n- Create updated events with new details"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        64
+      ],
+      "id": "e8220001-017e-4f18-934e-b85071f434e6",
+      "name": "Travel Agent"
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "your-mcp-server-sse-endpoint",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        432,
+        416
+      ],
+      "id": "b93a12b7-ffcc-471a-990c-1afce534129c",
+      "name": "Email MCP Client"
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "your-mcp-server-sse-endpoint",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        608,
+        416
+      ],
+      "id": "a2992b85-49c1-495a-ba61-f605a3955f8e",
+      "name": "Calendar MCP Client"
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "your-mcp-server-sse-endpoint",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        256,
+        416
+      ],
+      "id": "796e5899-8698-467d-9d08-4cab4edf269c",
+      "name": "Search MCP Client"
+    },
+    {
+      "parameters": {
+        "path": "bf138fc1-1403-483b-8473-44e4b917111e"
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        704
+      ],
+      "id": "1d0af29f-90cf-493c-a817-836a5c9e0e3a",
+      "name": "Send Email MCP Server",
+      "webhookId": "bf138fc1-1403-483b-8473-44e4b917111e"
+    },
+    {
+      "parameters": {
+        "path": "ea24a88f-721f-452b-b057-4c065ea2e758"
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
+      "typeVersion": 1,
+      "position": [
+        384,
+        704
+      ],
+      "id": "ba294b07-f5ad-41a5-8721-559c05d70c1a",
+      "name": "Google Calendar MCP Server",
+      "webhookId": "ea24a88f-721f-452b-b057-4c065ea2e758"
+    },
+    {
+      "parameters": {
+        "path": "9e1f3acb-ef2a-46a8-a817-7e4aa5a015fa"
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
+      "typeVersion": 1,
+      "position": [
+        -704,
+        704
+      ],
+      "id": "991c8c39-aa30-4fc6-91e7-8c11868b5010",
+      "name": "Search MCP Server",
+      "webhookId": "9e1f3acb-ef2a-46a8-a817-7e4aa5a015fa"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search flights for the user to plan travel",
+        "url": "https://serpapi.com/search",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "serpApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google_flights"
+            },
+            {
+              "name": "departure_id",
+              "value": "={{ $fromAI('departurn_id', `ID of the origin airport`, 'string') }}"
+            },
+            {
+              "name": "arrival_id",
+              "value": "={{ $fromAI('arrival_id', `ID of the destination airport`, 'string') }}"
+            },
+            {
+              "name": "outbound_date",
+              "value": "={{ $fromAI('outbound_date', `Date on which travel starts`, 'string') }}"
+            },
+            {
+              "name": "return_date",
+              "value": "={{ $fromAI('return_date', `Date on which travel ends`, 'string') }}"
+            },
+            {
+              "name": "adults",
+              "value": "={{ $fromAI('adults', `Number of adults traveling`, 'string') }}"
+            },
+            {
+              "name": "travel_class",
+              "value": "={{ $fromAI('travel_class', `Economy, business, first class, etc`, 'string') }}"
+            },
+            {
+              "name": "children",
+              "value": "={{ $fromAI('children', `Number of children traveling`, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        -784,
+        1024
+      ],
+      "id": "a32be5ae-4d69-4d3f-b864-2210539e5c49",
+      "name": "Search Flights",
+      "credentials": {
+        "serpApi": {
+          "id": "DtPeBZype4WpqlVv",
+          "name": "SerpAPI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search hotels for the user to plan travel",
+        "url": "https://serpapi.com/search",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "serpApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google_hotels"
+            },
+            {
+              "name": "check_in_date",
+              "value": "={{ $fromAI('check_in_date', `Hotel check-in date`, 'string') }}"
+            },
+            {
+              "name": "check_out_date",
+              "value": "={{ $fromAI('check_out_date', `Hotel check-out date`, 'string') }}"
+            },
+            {
+              "name": "adults",
+              "value": "={{ $fromAI('adults', `Adults staying at the hotel`, 'string') }}"
+            },
+            {
+              "name": "sort_by",
+              "value": "={{ $fromAI('sort_by', `Sorting preferences`, 'string') }}"
+            },
+            {
+              "name": "q",
+              "value": "={{ $fromAI('destination', `The place user is traveling to`, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        -624,
+        1024
+      ],
+      "id": "6f39a9e8-45f7-420c-bb47-2b7b28afdb3c",
+      "name": "Search Hotels",
+      "credentials": {
+        "serpApi": {
+          "id": "DtPeBZype4WpqlVv",
+          "name": "SerpAPI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search activities in the destination on the basis of user's preferences",
+        "url": "https://serpapi.com/search",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "serpApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $fromAI('activities', `Activities user would like to do`, 'string') }} in {{ $fromAI('destination', `Place user is traveling to`, 'string') }}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        -464,
+        1024
+      ],
+      "id": "06c75971-5ae3-4a1c-a3c8-73cfcd05eb28",
+      "name": "Search Activities",
+      "credentials": {
+        "serpApi": {
+          "id": "DtPeBZype4WpqlVv",
+          "name": "SerpAPI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Send the itenary to the user in email",
+        "sendTo": "={{ $fromAI('To', `User's email to send the itenary to`, 'string') }}",
+        "subject": "={{ $fromAI('Subject', ``, 'string') }}",
+        "message": "={{ $fromAI('Message', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        -32,
+        976
+      ],
+      "id": "0ff471db-c6bf-4f04-b105-924f95974196",
+      "name": "SendEmail",
+      "webhookId": "e154ffc9-01a8-4692-b84a-e421caf9c816",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dpKzcVBg5lfquwMX",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Create an event in Google Calendar for the travel",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $fromAI('Calendar', ``, 'string') }}",
+          "mode": "id",
+          "__regex": "(^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*)"
+        },
+        "start": "={{ $fromAI('Start', ``, 'string') }}",
+        "end": "={{ $fromAI('End', ``, 'string') }}",
+        "additionalFields": {
+          "summary": "={{ $fromAI('Summary', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        464,
+        992
+      ],
+      "id": "ae4d6f40-8a17-425d-af2f-221208a509a2",
+      "name": "CreateEvent",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "N24BWmQyeiAGHr1y",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Gets a list of events from calendar to check avaialbility",
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $fromAI('Calendar', ``, 'string') }}",
+          "__regex": "(^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*)"
+        },
+        "returnAll": true,
+        "timeMin": "={{ $fromAI('After', ``, 'string') }}",
+        "timeMax": "={{ $fromAI('Before', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        304,
+        992
+      ],
+      "id": "cfc11c88-a160-4f8f-9c3b-5f286b5ce4c3",
+      "name": "GetEvent",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "N24BWmQyeiAGHr1y",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Delete an event in Google Calendar if user wants to change the itinerary",
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $fromAI('Calendar', ``, 'string') }}",
+          "mode": "id",
+          "__regex": "(^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*)"
+        },
+        "eventId": "={{ $fromAI('Event_ID', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        656,
+        992
+      ],
+      "id": "85314d69-e4c7-4c5c-be7f-17a2a9c7e969",
+      "name": "DeleteEvent",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "N24BWmQyeiAGHr1y",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## AI Travel Assistant\n",
+        "height": 560,
+        "width": 1600,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -832,
+        -16
+      ],
+      "typeVersion": 1,
+      "id": "9174d15c-0878-4827-8853-0c2c851f3078",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Search MCP Server",
+        "height": 620,
+        "width": 520,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -832,
+        576
+      ],
+      "typeVersion": 1,
+      "id": "88fd986e-2542-4433-8cb0-a9315ca4b3ac",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Email MCP Server",
+        "height": 620,
+        "width": 520,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -288,
+        576
+      ],
+      "typeVersion": 1,
+      "id": "69f8f21b-3e3a-42e4-a638-ec77b8c0c616",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Calendar MCP Server",
+        "height": 620,
+        "width": 520,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        256,
+        576
+      ],
+      "typeVersion": 1,
+      "id": "233ed4dc-1b26-453e-afef-a93cf44e117b",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "path": "b3d2d132-7cdd-4668-a905-54b4aab7cf39"
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        704
+      ],
+      "id": "1b86cb8b-6344-4475-b0d9-0d816d05963c",
+      "name": "MCP Server Trigger",
+      "webhookId": "b3d2d132-7cdd-4668-a905-54b4aab7cf39"
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Travel Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Travel Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Travel Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "Travel Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "Travel Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "Travel Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Flights": {
+      "ai_tool": [
+        [
+          {
+            "node": "Search MCP Server",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Hotels": {
+      "ai_tool": [
+        [
+          {
+            "node": "Search MCP Server",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Activities": {
+      "ai_tool": [
+        [
+          {
+            "node": "Search MCP Server",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendEmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "Send Email MCP Server",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CreateEvent": {
+      "ai_tool": [
+        [
+          {
+            "node": "Google Calendar MCP Server",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetEvent": {
+      "ai_tool": [
+        [
+          {
+            "node": "Google Calendar MCP Server",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeleteEvent": {
+      "ai_tool": [
+        [
+          {
+            "node": "Google Calendar MCP Server",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a4ecec9555f5b06310e132d91f5a9064adeb061b91678daae338206fdb263b04"
+  }
+}
