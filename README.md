@@ -2,7 +2,7 @@
 
 Hey! I'm **Akhil**, and this is my personal sandbox for building and experimenting with autonomous AI agents.
 
-Most of the work here is built on **n8n**, connecting various AI models and tools to create helpful workflows. It's a "once in a generation" kind of tinkering space.
+Most of the work here is built on **n8n**, connecting various AI models and tools to create helpful workflows
 
 ---
 
@@ -26,10 +26,6 @@ Here's a lineup of the bots I've built/imported so far:
 *   **Brains**: OpenAI (GPT-4o / GPT-4o-mini)
 *   **Eyes/Ears**: SerpAPI (Google Search)
 *   **Memory**: Supabase (PostgreSQL + pgvector for RAG)
-
----
-
-*Project Status: Constantly evolving.*
 
 **Credits**
 Huge shoutout to **Hamza Farooq** and **Traversaal.ai** for the inspiration and foundation for many of these agentic workflows!
